@@ -17,7 +17,7 @@ import numpy as np
 # -- import local libraries
 import params as prm
 import functions as fn
-import hyss_util as hu
+
 
 print("TensorFlow Version:", tf. __version__)
 print("Python Version:", version)
@@ -29,51 +29,18 @@ if transfer == True:
 else:
        include_spatial = prm.nclude_spatial
 
-
-if str(prm.scene) == "1-a":
+if str(scene) == "1-a":
        scan = "108"
-       fname = "../../image_files/veg_00"+scan+".raw"
-elif str(prm.scene) == "1-b":
+elif str(scene) == "1-b":
        scan = "000"
-       fname = "../../image_files/veg_00"+scan+".raw"
 else:
-       fname = "../../scan1_slow_roof_VNIR.hdr"
+       scan = "north"
 
 
-# -- read the HSI cube from .raw file into float array
-cube  = hu.read_hyper(fname)
+# -- read and prep data
+cube_std_3d, xy = fn.prep_data(prm.scene)
 
-# -- reshape cube from (wavelength, row, col) to shape (row*col, wavelength)
-cube_reshaped = cube.data.transpose(1, 2, 0).reshape((cube_sub0.shape[1] * cube_sub0.shape[2]), cube_sub0.shape[0])
-
-# -- standardize the cube to have mean=0 and standard deviation=1
-cube_standard = (cube_reshaped - cube_reshaped.mean(1, keepdims=True)) / cube_reshaped.std(1, keepdims=True)
-
-# -- if reduce_resolution = True, the spectra are averaged into bins to simulate reduced resolution
-if prm.reduce_resolution:
-    bin_ind = []
-
-    for i in range(0, num_of_bins):
-        low_ind = int(i*int(cube_sub.shape[0]/num_of_bins))
-        upp_ind = int(low_ind + int(cube_sub.shape[0]/num_of_bins))
-        bin_ind.append([low_ind, upp_ind])
-    bin_ind[-1][-1] = cube_sub.shape[0]
-
-    cube_binned = np.zeros(shape=(cube_standard.shape[0], num_of_bins))
-    for i in range(num_of_bins):
-        cube_binned[:, i] = cube_standard[:, bin_ind[i][0]:bin_ind[i][1]].mean(1)
-
-    cube_standard = cube_binned
-    
-# -- reshape standardized cube to (row, col, wavelength)
-cube_std_3d = cube_standard.reshape(cube_sub.shape[1], cube_sub.shape[2], cube_sub.shape[0])
-
-# -- create position array from coordinates and normalize
-xy = fn.coords(cube_sub.shape[1], cube_sub.shape[2])
-xy = xy/xy.max()
-
-
-cube_train, cube_train_labels, xy_train, cube_test, cube_test_labels, xy_test = get_train_test("108", cube_std_3d, xy)
+cube_train, cube_train_labels, xy_train, cube_test, cube_test_labels, xy_test = get_train_test(scan, cube_std_3d, xy)
 
 # -- create and compile CNN model
 cnn = fn.CNN_Model(cube_std_3d.shape[2], spatial=include_spatial, prm.filtersize, prm.conv1, prm.dens1)
@@ -106,9 +73,11 @@ print("Testing Accuracy  = ", test_acc)
 
 
 # -- predict pixel classification on each scene
-
-fn.evaluate_model("1-a")
-fn.evaluate_model("1-b")
-fn.evaluate_model("2")
+if transfer == True:
+       fn.evaluate_model("1-a", cnn, include_spatial)
+       fn.evaluate_model("1-b", cnn, include_spatial)
+       fn.evaluate_model("2", cnn, include_spatial)
+else:
+       fn.evaluate_model(scan, cnn, include_spatial)
 
 

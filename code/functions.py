@@ -304,7 +304,7 @@ def get_train_test(scan, cube_std_3d, xy):
 	return cube_train2, cube_train_labels, xy_train, cube_test2, cube_test_labels, xy_test
 
 
-def evaluate_model(scan):
+def evaluate_model(scan, cnn, include_spatial):
 	"""
 	Predict the classifications on all pixels of a scene, produce prediction map,
 	confusion matrix, and classification report
@@ -312,14 +312,14 @@ def evaluate_model(scan):
 
 	print("Predicting classifications of scene ", scan)
 
-	cube_std_3d, xy = fn.prep_data(scan, cnn)
+	cube_std_3d, xy = fn.prep_data(scan)
 
 	cube_standard_1 = cube_std_3d.reshape(cube_standard.shape[0] * cube_standard.shape[1], cube_standard.shape[2], 1)
 	xy_2d = xy.reshape((xy.shape[0] * xy.shape[1]), xy.shape[2])
 
 	start_time = time.time()
 
-	if prm.include_spatial:
+	if include_spatial:
 	    probCube = cnn.predict({"spectra":cube_standard_1, "spatial":xy_2d})
 	else:
 	    probCube = cnn.predict({"spectra":cube_standard_1})
