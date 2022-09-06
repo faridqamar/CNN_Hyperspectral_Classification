@@ -6,7 +6,7 @@ This repo contains the code used in the publication "Pixel-Wise Classification o
 
 For this work we used ground-based, remote hyperspectral images of an urban scene in New York City captured in VNIR (0.4 - 1.0 microns) in ~850 spectral channels. We use a 1D-CNN model to classify pixels from their spectra as the following classes: Sky, Clouds, Vegetation, Water, Building facades, Windows, Roads, Cars, and Metal Structures.
 
-The model follows the architecture summarized below:
-
+The model architecture is summarized as follows:
 
 ![CNN Model Architecture](https://github.com/faridqamar/UO_Hyperspectral_Classification/blob/main/output/cnn_model.png)
+
