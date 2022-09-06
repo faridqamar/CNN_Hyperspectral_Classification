@@ -3,6 +3,7 @@ Parameter Configurations
 
 Author: Farid Qamar
 Organizartion: Urban Observatory, University of Delaware
+
 """
 
 # #####################
@@ -26,5 +27,5 @@ filtersize = 50
 conv1      = 16
 dens1      = 512
 
-EPOCHS   = 
-PATIENCE = 
+EPOCHS     = 110 
+BATCH_SIZE = 512

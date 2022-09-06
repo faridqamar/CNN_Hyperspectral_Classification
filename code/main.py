@@ -56,8 +56,22 @@ xy = fn.coords(cube_sub.shape[1], cube_sub.shape[2])
 xy = xy/xy.max()
 
 
+cube_train, cube_train_labels, xy_train, cube_test, cube_test_labels, xy_test = get_train_test("108", cube_std_3d, xy)
 
+# -- create and compile CNN model
+cnn = fn.CNN_Model(cube_std_3d.shape[2], spatial=prm.include_spatial, prm.filtersize, prm.conv1, prm.dens1)
+cnn.compile(optimizer="adam", loss="sparse_categorical_crossentropy",
+             metrics=["accuracy"])
 
+# -- fit model
+if prm.include_spatial:
+    CNNmodel = cnn.fit({"spectra":cube_train, "spatial":xy_train}, cube_train_labels, 
+                         validation_data=({"spectra":cube_test, "spatial":xy_test}, cube_test_labels),
+                         epochs=prm.EPOCHS, batch_size=prm.BATCH_SIZE)
+else:
+    CNNmodel = cnn.fit({"spectra":cube_train}, cube_train_labels, 
+                         validation_data=({"spectra":cube_test}, cube_test_labels),
+                         epochs=prm.EPOCHS, batch_size=prm.BATCH_SIZE)
 
 
 
