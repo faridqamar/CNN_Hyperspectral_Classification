@@ -347,5 +347,68 @@ def evaluate_model(scan):
 	lgd = ax.legend(handles=patches, bbox_to_anchor=(1,0.75), loc='upper left', borderaxespad=1.0, prop={'size':10}, ncol=1)
 	fig.savefig("../output/predict_map_"+scan+".png")
 
+
 	# -- get evaluation metrics
-	
+	# -- Read hand labeled data of each class
+	sky_coords = read_labelled_coordinates("1_sky", scan)
+	clouds_coords = read_labelled_coordinates("2_clouds", scan)
+	veg_coords = read_labelled_coordinates("3_vegetation", scan)
+	wtr_coords = read_labelled_coordinates("4_water", scan)
+	blt_coords = read_labelled_coordinates("5_buildings", scan)
+	windows_coords = read_labelled_coordinates("6_windows", scan)
+	rds_coords = read_labelled_coordinates("7_roads", scan)
+	cars_coords = read_labelled_coordinates("8_cars", scan)
+	mtl_coords = read_labelled_coordinates("9_metal", scan)
+
+	# -- get the coordinates of training and testing sets for each class
+	sky_train_ind, sky_test_ind = split_train_test_indices(sky_coords, 0, prm.trrat, "sky")
+	clouds_train_ind, clouds_test_ind = split_train_test_indices(clouds_coords, 1, prm.trrat, "clouds")
+	veg_train_ind, veg_test_ind = split_train_test_indices(veg_coords, 2, prm.trrat, "veg")
+	wtr_train_ind, wtr_test_ind = split_train_test_indices(wtr_coords, 3, prm.trrat, "wtr")
+	blt_train_ind, blt_test_ind = split_train_test_indices(blt_coords, 4, prm.trrat, "blt")
+	windows_train_ind, windows_test_ind = split_train_test_indices(windows_coords, 5, prm.trrat, "windows")
+	rds_train_ind, rds_test_ind = split_train_test_indices(rds_coords, 6, prm.trrat, "rds")
+	cars_train_ind, cars_test_ind = split_train_test_indices(cars_coords, 7, prm.trrat, "cars")
+	mtl_train_ind, mtl_test_ind = split_train_test_indices(mtl_coords, 8, prm.trrat, "mtl")
+
+	# -- create the prediction arrays from the predictions of the testing set
+	labels_pred_sky = predictCube_reshape[sky_coords[sky_test_ind[:], 0], sky_coords[sky_test_ind[:], 1]]
+	labels_pred_clouds = predictCube_reshape[clouds_coords[clouds_test_ind[:], 0], clouds_coords[clouds_test_ind[:],1]]
+	labels_pred_veg = predictCube_reshape[veg_coords[veg_test_ind[:],0], veg_coords[veg_test_ind[:],1]]
+	labels_pred_wtr = predictCube_reshape[wtr_coords[wtr_test_ind[:],0], wtr_coords[wtr_test_ind[:],1]]
+	labels_pred_blt = predictCube_reshape[blt_coords[blt_test_ind[:],0], blt_coords[blt_test_ind[:],1]]
+	labels_pred_windows = predictCube_reshape[windows_coords[windows_test_ind[:],0], windows_coords[windows_test_ind[:],1]]
+	labels_pred_rds = predictCube_reshape[rds_coords[rds_test_ind[:],0], rds_coords[rds_test_ind[:],1]]
+	labels_pred_cars = predictCube_reshape[cars_coords[cars_test_ind[:],0], cars_coords[cars_test_ind[:],1]]
+	labels_pred_mtl = predictCube_reshape[mtl_coords[mtl_test_ind[:],0], mtl_coords[mtl_test_ind[:],1]]
+
+	labels_pred = np.concatenate((labels_pred_sky, labels_pred_clouds, labels_pred_veg, labels_pred_wtr, 
+	                             labels_pred_blt, labels_pred_windows, labels_pred_rds, labels_pred_cars, labels_pred_mtl))
+
+	# -- create the true arrays from the labeled testing set
+	labels_true_sky = np.full(len(sky_test_ind), 0)
+	labels_true_clouds = np.full(len(clouds_test_ind), 1)
+	labels_true_veg = np.full(len(veg_test_ind), 2)
+	labels_true_wtr = np.full(len(wtr_test_ind), 3)
+	labels_true_blt = np.full(len(blt_test_ind), 4)
+	labels_true_windows = np.full(len(windows_test_ind), 5)
+	labels_true_rds = np.full(len(rds_test_ind), 6)
+	labels_true_cars = np.full(len(cars_test_ind), 7)
+	labels_true_mtl = np.full(len(mtl_test_ind), 8)
+
+	labels_true = np.concatenate((labels_true_sky, labels_true_clouds, labels_true_veg, labels_true_wtr, 
+	                             labels_true_blt, labels_true_windows, labels_true_rds, labels_true_cars, labels_true_mtl))
+
+	# -- print the confusion matrix, accuracy, and classification report of Scene 1-a
+
+	print("Confusion Matrix for scan ", scan)
+	print(metrics.confusion_matrix(labels_true, labels_pred))
+
+	print("")
+	print("Accuracy Score")
+	print(metrics.accuracy_score(labels_true, labels_pred))
+
+	target_names = ['sky', 'clouds', 'vegetation', 'water', 'built', 'windows', 'roads', 'cars', 'metal']
+	print("")
+	print("Classification Report")
+	print(metrics.classification_report(labels_true, labels_pred, target_names=target_names))
