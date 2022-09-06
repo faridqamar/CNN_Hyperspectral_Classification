@@ -20,6 +20,7 @@ import matplotlib.pyplot as plt
 
 # import local libraries
 import params as prm
+import hyss_util as hu
 
 
 def point_from_string(text):
@@ -71,6 +72,57 @@ def split_train_test_indices(coords, seed, trrat, kind):
     test_ind = ind[lim_ind:]
     
     return train_ind, test_ind
+
+
+
+def prep_data(scene):
+	"""
+	read HSI cube and prepare the data for use
+	"""
+
+	if str(scene) == "1-a":
+	       scan = "108"
+	       fname = "../../image_files/veg_00"+scan+".raw"
+	elif str(scene) == "1-b":
+	       scan = "000"
+	       fname = "../../image_files/veg_00"+scan+".raw"
+	else:
+	       fname = "../../scan1_slow_roof_VNIR.hdr"
+
+
+	# -- read the HSI cube from .raw file into float array
+	cube  = hu.read_hyper(fname)
+
+	# -- reshape cube from (wavelength, row, col) to shape (row*col, wavelength)
+	cube_reshaped = cube.data.transpose(1, 2, 0).reshape((cube.data.shape[1] * cube.data.shape[2]), cube.data.shape[0])
+
+	# -- standardize the cube to have mean=0 and standard deviation=1
+	cube_standard = (cube_reshaped - cube_reshaped.mean(1, keepdims=True)) / cube_reshaped.std(1, keepdims=True)
+
+	# -- if reduce_resolution = True, the spectra are averaged into bins to simulate reduced resolution
+	if prm.reduce_resolution:
+	    bin_ind = []
+
+	    for i in range(0, num_of_bins):
+	        low_ind = int(i*int(cube.data.shape[0]/num_of_bins))
+	        upp_ind = int(low_ind + int(cube.data.shape[0]/num_of_bins))
+	        bin_ind.append([low_ind, upp_ind])
+	    bin_ind[-1][-1] = cube.data.shape[0]
+
+	    cube_binned = np.zeros(shape=(cube_standard.shape[0], num_of_bins))
+	    for i in range(num_of_bins):
+	        cube_binned[:, i] = cube_standard[:, bin_ind[i][0]:bin_ind[i][1]].mean(1)
+
+	    cube_standard = cube_binned
+    
+	# -- reshape standardized cube to (row, col, wavelength)
+	cube_std_3d = cube_standard.reshape(cube.data.shape[1], cube.data.shape[2], cube_standard.shape[1])
+
+	# -- create position array from coordinates and normalize
+	xy = coords(cube.data.shape[1], cube.data.shape[2])
+	xy = xy/xy.max()
+
+	return cube_std_3d, xy
 
 
 def CNN_Model(nwaves, spatial, filtersize, conv1, dens1):  
@@ -140,6 +192,7 @@ def plot_loss_history(model):
     ax4.legend(['train', 'test'], loc='center right')
     ax4.set_yscale('log')
     f.savefig("../output/loss_history.png")
+
 
 def get_train_test(scan, cube_std_3d, xy):
 	"""
@@ -249,3 +302,50 @@ def get_train_test(scan, cube_std_3d, xy):
 	                             windows_xy_test, rds_xy_test, cars_xy_test, mtl_xy_test), axis=0)
 
 	return cube_train2, cube_train_labels, xy_train, cube_test2, cube_test_labels, xy_test
+
+
+def evaluate_model(scan):
+	"""
+	Predict the classifications on all pixels of a scene, produce prediction map,
+	confusion matrix, and classification report
+	"""
+
+	print("Predicting classifications of scene ", scan)
+
+	cube_std_3d, xy = fn.prep_data(scan, cnn)
+
+	cube_standard_1 = cube_std_3d.reshape(cube_standard.shape[0] * cube_standard.shape[1], cube_standard.shape[2], 1)
+	xy_2d = xy.reshape((xy.shape[0] * xy.shape[1]), xy.shape[2])
+
+	start_time = time.time()
+
+	if prm.include_spatial:
+	    probCube = cnn.predict({"spectra":cube_standard_1, "spatial":xy_2d})
+	else:
+	    probCube = cnn.predict({"spectra":cube_standard_1})
+	    
+	predictCube = probCube.argmax(axis=-1)
+
+	elapsed_time = time.time() - start_time
+	print(time.strftime("%H:%M:%S", time.gmtime(elapsed_time)))
+
+	# -- plot prediction map
+	predictCube_reshape = predictCube.reshape(cube_sub.shape[1], cube_sub.shape[2])
+
+	cmap = {0:[0,0.32549,0.62353,1], 1:[0.93333,0.9098,0.77255,1], 2:[0,0.61961,0.45098,1],  3:[0.33725,0.70588,0.91373,1],
+	        4:[0,0,0,1], 5:[1,0.82353,0,1], 6:[0.90196,0.62353,0,1], 7:[0.83529,0.36863,0,1],
+	        8:[0.8,0.47451,0.65490,1]}
+	labels = {0:'sky', 1:'clouds', 2:'vegetation', 3:'water', 4:'built',
+	          5:'windows', 6:'roads', 7:'cars', 8:'metal'}
+	arrayShow = np.array([[cmap[i] for i in j] for j in predictCube_reshape])
+	patches = [mpatches.Patch(color=cmap[i], label=labels[i]) for i in cmap]
+
+	fig = plt.figure(figsize=(15,15))
+	ax = fig.add_axes([0.1,0.1,0.9,0.9])
+	ax.tick_params(labelsize=10)
+	ax.imshow(arrayShow, aspect=0.5)
+	lgd = ax.legend(handles=patches, bbox_to_anchor=(1,0.75), loc='upper left', borderaxespad=1.0, prop={'size':10}, ncol=1)
+	fig.savefig("../output/predict_map_"+scan+".png")
+
+	# -- get evaluation metrics
+	

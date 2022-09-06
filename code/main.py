@@ -41,7 +41,6 @@ else:
 
 
 # -- read the HSI cube from .raw file into float array
-fname = "../../image_files/veg_00"+scan+".raw"
 cube  = hu.read_hyper(fname)
 
 # -- reshape cube from (wavelength, row, col) to shape (row*col, wavelength)
@@ -102,24 +101,14 @@ else:
     train_loss, train_acc = cnn.evaluate({"spectra":cube_train}, cube_train_labels)
     test_loss, test_acc = cnn.evaluate({"spectra":cube_test}, cube_test_labels)
     
-print(train_acc, test_acc)
+print("Training Accuracy = ", train_acc)
+print("Testing Accuracy  = ", test_acc)
 
 
-# -- predict pixel classification on entire images
+# -- predict pixel classification on each scene
 
-# -- predict on scene 1-a
-cube_standard_1 = cube_standard.reshape(cube_standard.shape[0], cube_standard.shape[1], 1)
-xy_2d = xy.reshape((xy.shape[0] * xy.shape[1]), xy.shape[2])
-start_time = time.time()
-if include_spatial:
-    probCube = cnn.predict({"spectra":cube_standard_1, "spatial":xy_2d})
-else:
-    probCube = cnn.predict({"spectra":cube_standard_1})
-predictCube = probCube.argmax(axis=-1)
-elapsed_time = time.time() - start_time
-print(time.strftime("%H:%M:%S", time.gmtime(elapsed_time)))
-
-# -- evaluation metrics for Scene 1-a
-
+fn.evaluate_model("1-a")
+fn.evaluate_model("1-b")
+fn.evaluate_model("2")
 
 
