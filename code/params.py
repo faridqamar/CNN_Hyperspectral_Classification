@@ -7,9 +7,21 @@ Organizartion: Urban Observatory, University of Delaware
 """
 
 # #####################
+# logistics
+# #####################
+
+# -- training image
+scene = "1-a"  # options are "1-a", "1-b", and "2"
+
+# -- transfer model (test on) to other scenes
+transfer = True
+
+
+
+# #####################
 # main model parameters
 # #####################
-include_spatial   = True 
+include_spatial   = True  # will be forced to False if transfer==True
 reduce_resolution = False
 num_of_bins = 848  # change to desired resolution if reduce_resolution==True
 

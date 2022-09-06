@@ -22,8 +22,26 @@ import hyss_util as hu
 print("TensorFlow Version:", tf. __version__)
 print("Python Version:", version)
 
+# -- read parameters
+transfer = prm.transfer
+if transfer == True:
+       include_spatial = False
+else:
+       include_spatial = prm.nclude_spatial
+
+
+if str(prm.scene) == "1-a":
+       scan = "108"
+       fname = "../../image_files/veg_00"+scan+".raw"
+elif str(prm.scene) == "1-b":
+       scan = "000"
+       fname = "../../image_files/veg_00"+scan+".raw"
+else:
+       fname = "../../scan1_slow_roof_VNIR.hdr"
+
+
 # -- read the HSI cube from .raw file into float array
-fname = "../../image_files/veg_00108.raw"
+fname = "../../image_files/veg_00"+scan+".raw"
 cube  = hu.read_hyper(fname)
 
 # -- reshape cube from (wavelength, row, col) to shape (row*col, wavelength)
@@ -59,12 +77,12 @@ xy = xy/xy.max()
 cube_train, cube_train_labels, xy_train, cube_test, cube_test_labels, xy_test = get_train_test("108", cube_std_3d, xy)
 
 # -- create and compile CNN model
-cnn = fn.CNN_Model(cube_std_3d.shape[2], spatial=prm.include_spatial, prm.filtersize, prm.conv1, prm.dens1)
+cnn = fn.CNN_Model(cube_std_3d.shape[2], spatial=include_spatial, prm.filtersize, prm.conv1, prm.dens1)
 cnn.compile(optimizer="adam", loss="sparse_categorical_crossentropy",
              metrics=["accuracy"])
 
 # -- fit model
-if prm.include_spatial:
+if include_spatial:
     CNNmodel = cnn.fit({"spectra":cube_train, "spatial":xy_train}, cube_train_labels, 
                          validation_data=({"spectra":cube_test, "spatial":xy_test}, cube_test_labels),
                          epochs=prm.EPOCHS, batch_size=prm.BATCH_SIZE)
@@ -73,6 +91,35 @@ else:
                          validation_data=({"spectra":cube_test}, cube_test_labels),
                          epochs=prm.EPOCHS, batch_size=prm.BATCH_SIZE)
 
+
+# -- evaluate model
+# model accuracy on training and testing sets
+
+if include_spatial:
+    train_loss, train_acc = cnn.evaluate({"spectra":cube_train, "spatial":xy_train}, cube_train_labels)
+    test_loss, test_acc = cnn.evaluate({"spectra":cube_test, "spatial":xy_test}, cube_test_labels)
+else:
+    train_loss, train_acc = cnn.evaluate({"spectra":cube_train}, cube_train_labels)
+    test_loss, test_acc = cnn.evaluate({"spectra":cube_test}, cube_test_labels)
+    
+print(train_acc, test_acc)
+
+
+# -- predict pixel classification on entire images
+
+# -- predict on scene 1-a
+cube_standard_1 = cube_standard.reshape(cube_standard.shape[0], cube_standard.shape[1], 1)
+xy_2d = xy.reshape((xy.shape[0] * xy.shape[1]), xy.shape[2])
+start_time = time.time()
+if include_spatial:
+    probCube = cnn.predict({"spectra":cube_standard_1, "spatial":xy_2d})
+else:
+    probCube = cnn.predict({"spectra":cube_standard_1})
+predictCube = probCube.argmax(axis=-1)
+elapsed_time = time.time() - start_time
+print(time.strftime("%H:%M:%S", time.gmtime(elapsed_time)))
+
+# -- evaluation metrics for Scene 1-a
 
 
 
