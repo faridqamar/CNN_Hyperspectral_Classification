@@ -9,4 +9,4 @@ For this work we used ground-based, remote hyperspectral images of an urban scen
 The model follows the architecture summarized below:
 
 
-![CNN Model Architecture][https://github.com/faridqamar/UO_Hyperspectral_Classification/blob/main/output/cnn_model.png]
+![CNN Model Architecture](https://github.com/faridqamar/UO_Hyperspectral_Classification/blob/main/output/cnn_model.png)
