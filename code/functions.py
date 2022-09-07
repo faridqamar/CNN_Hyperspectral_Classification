@@ -24,17 +24,17 @@ import hyss_util as hu
 
 
 def point_from_string(text):
-    """
+	"""
 	Takes in text representing the indices, splits 
 	it into row index and column index and returns 
 	them as integers
-    """
+	"""
 
-    items = text.strip("\n").split(" ")
-    rind = int(items[0])
-    cind = int(items[1])
-    
-    return rind, cind
+	items = text.strip("\n").split(" ")
+	rind = int(items[0])
+	cind = int(items[1])
+	
+	return rind, cind
 
 
 def coords(row, col):
@@ -42,7 +42,9 @@ def coords(row, col):
 	Transforms individual row and column numbers into array
 	"""
 
-    return np.array(list(np.ndindex((row, col)))).reshape(row, col, 2)
+	arr = np.array(list(np.ndindex((row, col)))).reshape(row, col, 2)
+
+	return arr
 
 
 def read_labelled_coordinates(kind, scan):
@@ -50,13 +52,12 @@ def read_labelled_coordinates(kind, scan):
 	Read the manually classified pixels coordinated given
 	the type of pixels (kind) and image identifier (scan)
 	"""
+	file = open("../data/{0}_coordinates_{1}.txt".format(kind, scan), "r")
+	coords = file.readlines()
+	file.close()
+	coords = np.array([point_from_string(line) for line in coords])
 
-    file = open("../data/{0}_coordinates_{1}.txt".format(kind, scan), "r")
-    coords = file.readlines()
-    file.close()
-    coords = np.array([point_from_string(line) for line in coords])
-    
-    return coords
+	return coords
 
 
 def split_train_test_indices(coords, seed, trrat, kind):
@@ -65,13 +66,13 @@ def split_train_test_indices(coords, seed, trrat, kind):
 	training and testing sets fiven a split ratio (trrat)
 	"""
 
-    ind = np.arange(coords.shape[0])
-    random.Random(seed).shuffle(ind)
-    lim_ind = int(len(ind)*trrat)
-    train_ind = ind[:lim_ind]
-    test_ind = ind[lim_ind:]
-    
-    return train_ind, test_ind
+	ind = np.arange(coords.shape[0])
+	random.Random(seed).shuffle(ind)
+	lim_ind = int(len(ind)*trrat)
+	train_ind = ind[:lim_ind]
+	test_ind = ind[lim_ind:]
+
+	return train_ind, test_ind
 
 
 
@@ -81,13 +82,13 @@ def prep_data(scene):
 	"""
 
 	if str(scene) == "1-a":
-	       scan = "108"
-	       fname = "../../image_files/veg_00"+scan+".raw"
+		   scan = "108"
+		   fname = "../../image_files/veg_00"+scan+".raw"
 	elif str(scene) == "1-b":
-	       scan = "000"
-	       fname = "../../image_files/veg_00"+scan+".raw"
+		   scan = "000"
+		   fname = "../../image_files/veg_00"+scan+".raw"
 	else:
-	       fname = "../../scan1_slow_roof_VNIR.hdr"
+		   fname = "../../scan1_slow_roof_VNIR.hdr"
 
 
 	# -- read the HSI cube from .raw file into float array
@@ -101,20 +102,20 @@ def prep_data(scene):
 
 	# -- if reduce_resolution = True, the spectra are averaged into bins to simulate reduced resolution
 	if prm.reduce_resolution:
-	    bin_ind = []
+		bin_ind = []
 
-	    for i in range(0, num_of_bins):
-	        low_ind = int(i*int(cube.data.shape[0]/num_of_bins))
-	        upp_ind = int(low_ind + int(cube.data.shape[0]/num_of_bins))
-	        bin_ind.append([low_ind, upp_ind])
-	    bin_ind[-1][-1] = cube.data.shape[0]
+		for i in range(0, num_of_bins):
+			low_ind = int(i*int(cube.data.shape[0]/num_of_bins))
+			upp_ind = int(low_ind + int(cube.data.shape[0]/num_of_bins))
+			bin_ind.append([low_ind, upp_ind])
+		bin_ind[-1][-1] = cube.data.shape[0]
 
-	    cube_binned = np.zeros(shape=(cube_standard.shape[0], num_of_bins))
-	    for i in range(num_of_bins):
-	        cube_binned[:, i] = cube_standard[:, bin_ind[i][0]:bin_ind[i][1]].mean(1)
+		cube_binned = np.zeros(shape=(cube_standard.shape[0], num_of_bins))
+		for i in range(num_of_bins):
+			cube_binned[:, i] = cube_standard[:, bin_ind[i][0]:bin_ind[i][1]].mean(1)
 
-	    cube_standard = cube_binned
-    
+		cube_standard = cube_binned
+	
 	# -- reshape standardized cube to (row, col, wavelength)
 	cube_std_3d = cube_standard.reshape(cube.data.shape[1], cube.data.shape[2], cube_standard.shape[1])
 
@@ -129,32 +130,32 @@ def CNN_Model(nwaves, spatial, filtersize, conv1, dens1):
 	"""
 	Create the CNN model using tensorflow.keras and the 
 	selected hyperparamters
-	"""      
+	"""	  
 
-    Inputs_1 = keras.Input(shape=(nwaves, 1), name="spectra")
-    Conv1D_1 = layers.Conv1D(conv1, kernel_size=(filtersize), padding="same", activation="relu")(Inputs_1)
-    MaxPool_1 = layers.MaxPooling1D((2), strides=2)(Conv1D_1)
-    Conv1D_2 = layers.Conv1D(conv1*2, kernel_size=(filtersize), padding="same", activation="relu")(MaxPool_1)
-    MaxPool_2 = layers.MaxPooling1D((2), strides=2)(Conv1D_2)
-    Dropout_1 = layers.Dropout(0.5)(MaxPool_2)
-    Flatten_1 = layers.Flatten()(Dropout_1)
-    
-    if spatial:
-        Inputs_2 = keras.Input(shape=(2,), name="spatial")
-        Concat = layers.concatenate([Flatten_1, Inputs_2])
-        Dense_1 = layers.Dense(dens1, activation="relu")(Concat)
-        Output = layers.Dense(9, activation="softmax")(Dense_1)
+	Inputs_1 = keras.Input(shape=(nwaves, 1), name="spectra")
+	Conv1D_1 = layers.Conv1D(conv1, kernel_size=(filtersize), activation="relu")(Inputs_1)
+	MaxPool_1 = layers.MaxPooling1D((2), strides=2)(Conv1D_1)
+	Conv1D_2 = layers.Conv1D(conv1*2, kernel_size=(filtersize), activation="relu")(MaxPool_1)
+	MaxPool_2 = layers.MaxPooling1D((2), strides=2)(Conv1D_2)
+	Dropout_1 = layers.Dropout(0.5)(MaxPool_2)
+	Flatten_1 = layers.Flatten()(Dropout_1)
+	
+	if spatial:
+		Inputs_2 = keras.Input(shape=(2,), name="spatial")
+		Concat = layers.concatenate([Flatten_1, Inputs_2])
+		Dense_1 = layers.Dense(dens1, activation="relu")(Concat)
+		Output = layers.Dense(9, activation="softmax")(Dense_1)
 
-        model = keras.Model(inputs=[Inputs_1, Inputs_2],
-                            outputs=[Output],)
-    else:
-        Dense_1 = layers.Dense(dens1, activation="relu")(Flatten_1)
-        Output = layers.Dense(9, activation="softmax")(Dense_1)
+		model = keras.Model(inputs=[Inputs_1, Inputs_2],
+							outputs=[Output],)
+	else:
+		Dense_1 = layers.Dense(dens1, activation="relu")(Flatten_1)
+		Output = layers.Dense(9, activation="softmax")(Dense_1)
 
-        model = keras.Model(inputs=[Inputs_1],
-                            outputs=[Output],)
-    
-    return model
+		model = keras.Model(inputs=[Inputs_1],
+							outputs=[Output],)
+	
+	return model
 
 
 def plot_loss_history(model):
@@ -162,36 +163,36 @@ def plot_loss_history(model):
 	Plot the loss history and accuracy of the CNN
 	"""
 
-    f, ((ax1, ax2), (ax3, ax4)) = plt.subplots(2,2, figsize=(12, 10))
-    ax1.plot(model.history['loss'])
-    ax1.plot(model.history['val_loss'])
-    ax1.set_title('CNN Model Loss')
-    ax1.set_ylabel('loss')
-    ax1.set_xlabel('epoch')
-    ax1.locator_params(nbins=13, axis='x')
-    ax1.legend(['train', 'test'], loc='center right')
-    ax2.plot(model.history['acc'])
-    ax2.plot(model.history['val_acc'])
-    ax2.set_title('CNN Model Accuracy')
-    ax2.set_ylabel('accuracy')
-    ax2.set_xlabel('epoch')
-    ax2.locator_params(nbins=12, axis='x')
-    ax2.legend(['train', 'test'], loc='center right')
-    ax3.plot(model.history['loss'])
-    ax3.plot(model.history['val_loss'])
-    ax3.set_ylabel('log(loss)')
-    ax3.set_xlabel('epoch')
-    ax3.locator_params(nbins=13, axis='x')
-    ax3.legend(['train', 'test'], loc='center right')
-    ax3.set_yscale('log')
-    ax4.plot(model.history['acc'])
-    ax4.plot(model.history['val_acc'])
-    ax4.set_ylabel('log(accuracy)')
-    ax4.set_xlabel('epoch')
-    ax4.locator_params(nbins=12, axis='x')
-    ax4.legend(['train', 'test'], loc='center right')
-    ax4.set_yscale('log')
-    f.savefig("../output/loss_history.png")
+	f, ((ax1, ax2), (ax3, ax4)) = plt.subplots(2,2, figsize=(12, 10))
+	ax1.plot(model.history['loss'])
+	ax1.plot(model.history['val_loss'])
+	ax1.set_title('CNN Model Loss')
+	ax1.set_ylabel('loss')
+	ax1.set_xlabel('epoch')
+	ax1.locator_params(nbins=13, axis='x')
+	ax1.legend(['train', 'test'], loc='center right')
+	ax2.plot(model.history['acc'])
+	ax2.plot(model.history['val_acc'])
+	ax2.set_title('CNN Model Accuracy')
+	ax2.set_ylabel('accuracy')
+	ax2.set_xlabel('epoch')
+	ax2.locator_params(nbins=12, axis='x')
+	ax2.legend(['train', 'test'], loc='center right')
+	ax3.plot(model.history['loss'])
+	ax3.plot(model.history['val_loss'])
+	ax3.set_ylabel('log(loss)')
+	ax3.set_xlabel('epoch')
+	ax3.locator_params(nbins=13, axis='x')
+	ax3.legend(['train', 'test'], loc='center right')
+	ax3.set_yscale('log')
+	ax4.plot(model.history['acc'])
+	ax4.plot(model.history['val_acc'])
+	ax4.set_ylabel('log(accuracy)')
+	ax4.set_xlabel('epoch')
+	ax4.locator_params(nbins=12, axis='x')
+	ax4.legend(['train', 'test'], loc='center right')
+	ax4.set_yscale('log')
+	f.savefig("../output/loss_history.png")
 
 
 def get_train_test(scan, cube_std_3d, xy):
@@ -279,27 +280,27 @@ def get_train_test(scan, cube_std_3d, xy):
 
 	# -- concatenate the training arrays into training data and labels
 	cube_train = np.concatenate((cube_sky_train, cube_clouds_train, cube_veg_train, cube_wtr_train, cube_blt_train,
-	                            cube_windows_train, cube_rds_train, cube_cars_train, cube_mtl_train), axis=0)
+								cube_windows_train, cube_rds_train, cube_cars_train, cube_mtl_train), axis=0)
 	cube_train2 = cube_train.reshape(cube_train.shape[0], cube_train.shape[1], 1)
 	cube_train_labels = [0]*cube_sky_train.shape[0] + [1]*cube_clouds_train.shape[0] \
-	                    + [2]*cube_veg_train.shape[0] + [3]*cube_wtr_train.shape[0] \
-	                    + [4]*cube_blt_train.shape[0] + [5]*cube_windows_train.shape[0] \
-	                    + [6]*cube_rds_train.shape[0] + [7]*cube_cars_train.shape[0] + [8]*cube_mtl_train.shape[0]
+						+ [2]*cube_veg_train.shape[0] + [3]*cube_wtr_train.shape[0] \
+						+ [4]*cube_blt_train.shape[0] + [5]*cube_windows_train.shape[0] \
+						+ [6]*cube_rds_train.shape[0] + [7]*cube_cars_train.shape[0] + [8]*cube_mtl_train.shape[0]
 	cube_train_labels = np.array(cube_train_labels)
 	xy_train = np.concatenate((sky_xy_train, clouds_xy_train, veg_xy_train, wtr_xy_train, blt_xy_train,
-	                             windows_xy_train, rds_xy_train, cars_xy_train, mtl_xy_train), axis=0)
+								 windows_xy_train, rds_xy_train, cars_xy_train, mtl_xy_train), axis=0)
 
 	# -- concatenate the testing arrays into testing data and labels
 	cube_test = np.concatenate((cube_sky_test, cube_clouds_test, cube_veg_test, cube_wtr_test, cube_blt_test,
-	                            cube_windows_test, cube_rds_test, cube_cars_test, cube_mtl_test), axis=0)
+								cube_windows_test, cube_rds_test, cube_cars_test, cube_mtl_test), axis=0)
 	cube_test2 = cube_test.reshape(cube_test.shape[0], cube_test.shape[1], 1)
 	cube_test_labels = [0]*cube_sky_test.shape[0] + [1]*cube_clouds_test.shape[0] \
-	                    + [2]*cube_veg_test.shape[0] + [3]*cube_wtr_test.shape[0] \
-	                    + [4]*cube_blt_test.shape[0] + [5]*cube_windows_test.shape[0] \
-	                    + [6]*cube_rds_test.shape[0] + [7]*cube_cars_test.shape[0] + [8]*cube_mtl_test.shape[0]
+						+ [2]*cube_veg_test.shape[0] + [3]*cube_wtr_test.shape[0] \
+						+ [4]*cube_blt_test.shape[0] + [5]*cube_windows_test.shape[0] \
+						+ [6]*cube_rds_test.shape[0] + [7]*cube_cars_test.shape[0] + [8]*cube_mtl_test.shape[0]
 	cube_test_labels = np.array(cube_test_labels)
 	xy_test = np.concatenate((sky_xy_test, clouds_xy_test, veg_xy_test, wtr_xy_test, blt_xy_test,
-	                             windows_xy_test, rds_xy_test, cars_xy_test, mtl_xy_test), axis=0)
+								 windows_xy_test, rds_xy_test, cars_xy_test, mtl_xy_test), axis=0)
 
 	return cube_train2, cube_train_labels, xy_train, cube_test2, cube_test_labels, xy_test
 
@@ -320,10 +321,10 @@ def evaluate_model(scan, cnn, include_spatial):
 	start_time = time.time()
 
 	if include_spatial:
-	    probCube = cnn.predict({"spectra":cube_standard_1, "spatial":xy_2d})
+		probCube = cnn.predict({"spectra":cube_standard_1, "spatial":xy_2d})
 	else:
-	    probCube = cnn.predict({"spectra":cube_standard_1})
-	    
+		probCube = cnn.predict({"spectra":cube_standard_1})
+		
 	predictCube = probCube.argmax(axis=-1)
 
 	elapsed_time = time.time() - start_time
@@ -333,10 +334,10 @@ def evaluate_model(scan, cnn, include_spatial):
 	predictCube_reshape = predictCube.reshape(cube_sub.shape[1], cube_sub.shape[2])
 
 	cmap = {0:[0,0.32549,0.62353,1], 1:[0.93333,0.9098,0.77255,1], 2:[0,0.61961,0.45098,1],  3:[0.33725,0.70588,0.91373,1],
-	        4:[0,0,0,1], 5:[1,0.82353,0,1], 6:[0.90196,0.62353,0,1], 7:[0.83529,0.36863,0,1],
-	        8:[0.8,0.47451,0.65490,1]}
+			4:[0,0,0,1], 5:[1,0.82353,0,1], 6:[0.90196,0.62353,0,1], 7:[0.83529,0.36863,0,1],
+			8:[0.8,0.47451,0.65490,1]}
 	labels = {0:'sky', 1:'clouds', 2:'vegetation', 3:'water', 4:'built',
-	          5:'windows', 6:'roads', 7:'cars', 8:'metal'}
+			  5:'windows', 6:'roads', 7:'cars', 8:'metal'}
 	arrayShow = np.array([[cmap[i] for i in j] for j in predictCube_reshape])
 	patches = [mpatches.Patch(color=cmap[i], label=labels[i]) for i in cmap]
 
@@ -383,7 +384,7 @@ def evaluate_model(scan, cnn, include_spatial):
 	labels_pred_mtl = predictCube_reshape[mtl_coords[mtl_test_ind[:],0], mtl_coords[mtl_test_ind[:],1]]
 
 	labels_pred = np.concatenate((labels_pred_sky, labels_pred_clouds, labels_pred_veg, labels_pred_wtr, 
-	                             labels_pred_blt, labels_pred_windows, labels_pred_rds, labels_pred_cars, labels_pred_mtl))
+								 labels_pred_blt, labels_pred_windows, labels_pred_rds, labels_pred_cars, labels_pred_mtl))
 
 	# -- create the true arrays from the labeled testing set
 	labels_true_sky = np.full(len(sky_test_ind), 0)
@@ -397,7 +398,7 @@ def evaluate_model(scan, cnn, include_spatial):
 	labels_true_mtl = np.full(len(mtl_test_ind), 8)
 
 	labels_true = np.concatenate((labels_true_sky, labels_true_clouds, labels_true_veg, labels_true_wtr, 
-	                             labels_true_blt, labels_true_windows, labels_true_rds, labels_true_cars, labels_true_mtl))
+								 labels_true_blt, labels_true_windows, labels_true_rds, labels_true_cars, labels_true_mtl))
 
 	# -- print the confusion matrix, accuracy, and classification report of Scene 1-a
 
